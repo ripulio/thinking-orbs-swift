@@ -26,6 +26,27 @@ final class ThinkingOrbsRenderTests: XCTestCase {
         }
     }
 
+    /// A frame limit is the gap between frames; anything that is not a
+    /// positive number is no limit, which is every refresh of the display.
+    func testFrameLimitIsTheGapBetweenFrames() throws {
+        XCTAssertEqual(try XCTUnwrap(ThinkingOrbView.minimumInterval(10)), 0.1, accuracy: 1e-9)
+        XCTAssertEqual(try XCTUnwrap(ThinkingOrbView.minimumInterval(15)), 1.0 / 15, accuracy: 1e-9)
+        XCTAssertNil(ThinkingOrbView.minimumInterval(nil))
+        XCTAssertNil(ThinkingOrbView.minimumInterval(0))
+        XCTAssertNil(ThinkingOrbView.minimumInterval(-5))
+        XCTAssertNil(ThinkingOrbView.minimumInterval(.nan))
+        XCTAssertNil(ThinkingOrbView.minimumInterval(.infinity))
+    }
+
+    /// A limited orb draws the same picture: only how often it is drawn changes.
+    @MainActor
+    func testALimitedOrbStillRendersInk() throws {
+        let renderer = ImageRenderer(content: ThinkingOrbView(state: .working, theme: .light, framesPerSecond: 10))
+        renderer.scale = 2
+        let cg = try XCTUnwrap(renderer.cgImage)
+        XCTAssertGreaterThan(inkedPixels(cg), 50)
+    }
+
     /// Opt-in visual dump: `THINKING_ORBS_DUMP=/some/dir swift test ...`
     /// writes one PNG per state for eyeballing against the reference demo.
     @MainActor

@@ -33,6 +33,7 @@ import ThinkingOrbs
 ThinkingOrbView(state: .working)                   // 64pt chat-avatar scale
 ThinkingOrbView(state: .listening, size: .inline)  // 20pt inline-text scale
 ThinkingOrbView(state: .connecting, speed: 1.5, paused: false)
+ThinkingOrbView(state: .listening, framesPerSecond: 15) // for an orb that stays on screen
 ```
 
 ### States
@@ -58,7 +59,8 @@ ThinkingOrbView(
     theme: OrbTheme = .auto,         // .auto follows colorScheme; .dark/.light pin the ink
     speed: Double = 1,               // multiplier over the preset's baked speed
     paused: Bool = false,
-    renderSize: Double? = nil        // draw a preset's tuning at a custom point size
+    renderSize: Double? = nil,       // draw a preset's tuning at a custom point size
+    framesPerSecond: Double? = nil   // the most frames to draw each second; nil is every display refresh
 )
 ```
 
@@ -69,6 +71,7 @@ The two size presets are **separate hand-tuned designs**, not a scale factor —
 - **Honestly 3D** — rotated, depth-shaded, z-sorted; depth is carried by dot size and ink weight alone. Plain fills, no blurs or filters.
 - **Pure function of time** — no simulation state; every frame derives deterministically from a shared clock, so all mounted orbs render in phase and pause/resume is trivially correct.
 - **Dark/light ink** — on dark substrates the ink value is mirrored so near dots read bright: the same depth language on an inverted substrate.
+- **Frame limit** — each frame is drawn on the main thread, once for every refresh of the display unless `framesPerSecond` says otherwise: 120 a second on a 120 Hz screen. For an orb that is on screen for minutes at a time (a voice conversation, a long task), 10 to 15 keeps the motion and takes a fraction of the work. Measured in the app this was written for: an orb left at the display's rate doubled the main thread's time awake.
 - **Reduced motion** — when `accessibilityReduceMotion` is set, a static representative frame is rendered instead (matching the upstream `prefers-reduced-motion` behaviour).
 - **Accessibility** — each state carries its upstream label ("Working…", "Thinking…", …) as the accessibility label.
 

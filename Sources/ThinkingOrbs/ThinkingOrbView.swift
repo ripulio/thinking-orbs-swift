@@ -4,7 +4,8 @@
 // representative frame that still follows the live theme.
 //
 // Every frame is a pure function of the clock — no state, no simulation —
-// so pausing, resuming and re-mounting are all trivially correct.
+// so pausing, resuming, re-mounting and drawing fewer frames a second are
+// all trivially correct.
 
 import SwiftUI
 
@@ -32,6 +33,7 @@ public struct ThinkingOrbView: View {
     private let speed: Double
     private let paused: Bool
     private let renderSize: Double?
+    private let framesPerSecond: Double?
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -44,13 +46,20 @@ public struct ThinkingOrbView: View {
     ///   - paused: Freeze the animation on the current frame.
     ///   - renderSize: Optional point size override; the preset's tuning is
     ///     drawn at this size instead of its native one.
+    ///   - framesPerSecond: The most frames to draw each second. `nil` draws
+    ///     one for every refresh of the display, which on a 120 Hz screen is
+    ///     120 redraws a second on the main thread. An orb that stays on
+    ///     screen for minutes costs a fraction of that at 10 to 15, and the
+    ///     motion is the same: each frame is drawn from the clock, so only
+    ///     how often it is sampled changes.
     public init(
         state: OrbState = .working,
         size: OrbSizePreset = .avatar,
         theme: OrbTheme = .auto,
         speed: Double = 1,
         paused: Bool = false,
-        renderSize: Double? = nil
+        renderSize: Double? = nil,
+        framesPerSecond: Double? = nil
     ) {
         self.state = state
         self.sizePreset = size
@@ -58,6 +67,7 @@ public struct ThinkingOrbView: View {
         self.speed = speed
         self.paused = paused
         self.renderSize = renderSize
+        self.framesPerSecond = framesPerSecond
     }
 
     private var side: Double { renderSize ?? sizePreset.points }
@@ -77,7 +87,7 @@ public struct ThinkingOrbView: View {
                 // one static, deterministic representative frame
                 orbCanvas(t: 0.6, resolved: resolved)
             } else {
-                TimelineView(.animation(minimumInterval: nil, paused: paused)) { timeline in
+                TimelineView(.animation(minimumInterval: Self.minimumInterval(framesPerSecond), paused: paused)) { timeline in
                     let t = timeline.date.timeIntervalSince(ThinkingOrbClock.epoch) * resolved.speed * speed
                     orbCanvas(t: t, resolved: resolved)
                 }
@@ -86,6 +96,13 @@ public struct ThinkingOrbView: View {
         .frame(width: side, height: side)
         .accessibilityLabel(Text(state.label))
         .accessibilityAddTraits(.isImage)
+    }
+
+    /// The gap between frames for a limit, or `nil` for every refresh of the
+    /// display. A limit of zero or less, or one that is not a number, is no limit.
+    static func minimumInterval(_ framesPerSecond: Double?) -> Double? {
+        guard let framesPerSecond, framesPerSecond.isFinite, framesPerSecond > 0 else { return nil }
+        return 1 / framesPerSecond
     }
 
     private func orbCanvas(t: Double, resolved: ResolvedOrb) -> some View {
